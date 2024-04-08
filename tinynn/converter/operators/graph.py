@@ -23,8 +23,9 @@ class CommonGraph(object):
     input_transpose: typing.List[bool]
     output_transpose: typing.Union[typing.List[typing.Optional[bool]], typing.Optional[bool]]
     node_op_counter: int
+    missing_outputs_as_constants: bool
 
-    def __init__(self) -> None:
+    def __init__(self, missing_outputs_as_constants: bool) -> None:
         self.graph = ig.Graph(directed=True)
         self.tensor_map = dict()
         self.tensor_node_map = dict()
@@ -34,6 +35,7 @@ class CommonGraph(object):
         self.input_transpose = []
         self.output_transpose = None
         self.node_op_counter = 0
+        self.missing_outputs_as_constants = missing_outputs_as_constants
 
     def add_iterable_pair(
         self, input_names: typing.List[str], output_names: typing.List[str], key: typing.Optional[str] = None
@@ -512,17 +514,21 @@ class CommonGraph(object):
         missing_inputs = [name for name, _ in filter(lambda x: x[1] < 0, zip(self.inputs, input_idx))]
         missing_outputs = [name for name, _ in filter(lambda x: x[1] < 0, zip(self.outputs, output_idx))]
 
-        assert len(missing_outputs) == 0, f'Some output nodes are missing: {missing_outputs}'
+        if not self.missing_outputs_as_constants:
+            assert len(missing_outputs) == 0, f'Some output nodes are missing: {missing_outputs}'
 
-        if len(missing_inputs) != 0:
-            warnings.warn(f'Some input nodes are missing: {missing_inputs}, will try to add them into graph')
-            for name in missing_inputs:
-                tensor = self.tensor_map[name]
-                tensor.index = tensor_idx
-                tensor_idx += 1
-                tensors.append(tensor)
-                item_idx = self.inputs.index(name)
-                input_idx[item_idx] = tensor.index
+        missing_vars_dict = {'input': (missing_inputs, self.inputs), 'output': (missing_outputs, self.outputs)}
+
+        for key, (missing_vars, var_indices) in missing_vars_dict.items():
+            if len(missing_vars) != 0:
+                warnings.warn(f'Some {key} nodes are missing: {missing_vars}, will try to add them into graph')
+                for name in missing_vars:
+                    tensor = self.tensor_map[name]
+                    tensor.index = tensor_idx
+                    tensor_idx += 1
+                    tensors.append(tensor)
+                    item_idx = var_indices.index(name)
+                    var_indices[item_idx] = tensor.index
 
         return tensors, buffers, input_idx, output_idx
 

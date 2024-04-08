@@ -49,6 +49,7 @@ class TFLiteConverter(object):
         float16_quantization: bool = False,
         enable_mtk_ops: bool = False,
         max_transpose_dims: int = -1,
+        missing_outputs_as_constants: bool = False,
     ) -> None:
         """ The TFLiteConverter class
 
@@ -91,6 +92,7 @@ class TFLiteConverter(object):
             float16_quantization (bool): Quantize constants with float32 dtype to floa16 dtype. Defaults to False
             enable_mtk_ops (bool): Translating with custom MTK operators. Defaults to False
             max_transpose_dims(int): Max dimensions for the `Transpose` op. Defaults to -1, which means unlimited
+            missing_outputs_as_constants (bool): View missing outputs as constants. Defaults to False
         """
 
         self.model = model
@@ -98,7 +100,7 @@ class TFLiteConverter(object):
         self.graph = None
         self.tensor_map = {}
         self.tensor_map_copies = {}
-        self.common_graph = CommonGraph()
+        self.common_graph = CommonGraph(missing_outputs_as_constants)
 
         if type(dummy_input) in (tuple, list):
             self.dummy_input = dummy_input
